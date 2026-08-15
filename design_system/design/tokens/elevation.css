@@ -1,0 +1,32 @@
+/* ============================================================
+   KEEPR — ELEVATION TOKENS
+   HARD drop shadows over soft blur. Depth = offset ink shadow,
+   no feather. Buttons look pressable and depress on the offset.
+   Chunky borders do the rest of the lifting.
+   ============================================================ */
+
+:root {
+  /* Hard offset shadows — zero (or tiny) blur, solid ink. */
+  --shadow-hard-sm:  3px 3px 0 0 var(--depth-shadow);
+  --shadow-hard:     5px 6px 0 0 var(--depth-shadow);
+  --shadow-hard-lg:  7px 9px 0 0 var(--depth-shadow);
+  --shadow-hard-xl:  10px 12px 0 0 var(--depth-shadow);
+
+  /* Pressed state: shadow collapses, element sits down */
+  --shadow-pressed:  1px 1px 0 0 var(--depth-shadow);
+
+  /* Border weights — the chunky outline system */
+  --bw-thin:   2px;   /* @kind other */
+  --bw:        3px;   /* default chunky @kind other */
+  --bw-thick:  4px;   /* @kind other */
+  --bw-slab:   5px;   /* deck cards, hero @kind other */
+
+  /* Colored glows reserved ONLY for reward/celebration surfaces */
+  --glow-keep:   0 0 0 0 transparent, 0 8px 30px rgba(255,107,44,0.45);   /* @kind shadow */
+  --glow-gone:   0 0 0 0 transparent, 0 8px 30px rgba(0,184,240,0.45);     /* @kind shadow */
+  --glow-reward: 0 0 0 0 transparent, 0 10px 40px rgba(255,198,60,0.55);   /* @kind shadow */
+
+  /* Soft blur exists ONLY for floating chrome over live photos,
+     never for tactile UI. Used sparingly. */
+  --shadow-float: 0 10px 30px rgba(0,0,0,0.45);
+}

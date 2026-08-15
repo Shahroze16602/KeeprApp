@@ -1,0 +1,89 @@
+/* ============================================================
+   KEEPR — MOTION TOKENS
+   Motion is LOUD. Springy, overshooting, bouncy. Cards snap
+   and settle. Numbers count up. Delete is whoosh-and-shrink.
+   Plus the HAPTIC MAP (documented; consumed by the app layer).
+   ============================================================ */
+
+:root {
+  /* Durations */
+  --dur-instant: 90ms;    /* @kind other */
+  --dur-snap:    160ms;   /* @kind other */
+  --dur-base:    240ms;   /* @kind other */
+  --dur-settle:  420ms;   /* @kind other */
+  --dur-celebrate: 700ms; /* @kind other */
+
+  /* Easing — overshoot is the house style */
+  --ease-out:      cubic-bezier(0.22, 1, 0.36, 1);      /* @kind other */
+  --ease-in:       cubic-bezier(0.55, 0, 1, 0.45);      /* @kind other */
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);   /* @kind other */
+  --ease-boing:    cubic-bezier(0.18, 1.9, 0.28, 1);    /* @kind other */
+  --ease-snap-back:cubic-bezier(0.30, 1.30, 0.55, 1);   /* @kind other */
+
+  /* Press feedback */
+  --press-scale:   0.94;    /* @kind other */
+  --press-translate: 4px;   /* travel into the hard shadow @kind other */
+}
+
+/* ---- Named keyframes shipped with the system ---- */
+@keyframes k-pop-in {
+  0%   { transform: scale(0.7); opacity: 0; }
+  60%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes k-slam {
+  0%   { transform: scale(1.6) rotate(-8deg); opacity: 0; }
+  55%  { transform: scale(0.92) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
+@keyframes k-whoosh-shrink {
+  0%   { transform: translateX(0) scale(1); opacity: 1; }
+  100% { transform: translateX(-38%) scale(0.55) rotate(-14deg); opacity: 0; }
+}
+@keyframes k-ring-overshoot {
+  0%   { stroke-dashoffset: var(--from, 0); }
+  70%  { stroke-dashoffset: var(--overshoot, 0); }
+  100% { stroke-dashoffset: var(--to, 0); }
+}
+@keyframes k-wiggle {
+  0%,100% { transform: rotate(0); }
+  25%  { transform: rotate(-4deg); }
+  75%  { transform: rotate(4deg); }
+}
+@keyframes k-bob {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-6px); }
+}
+
+/* Production accessibility: preserve state changes without vestibular motion. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+[data-motion="reduced"] *,
+[data-motion="reduced"] *::before,
+[data-motion="reduced"] *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 1ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+}
+
+/* ============================================================
+   HAPTIC MAP  (reference for the Compose/app layer)
+   Not CSS-consumable — documented as tokens for handoff.
+   ------------------------------------------------------------
+   --haptic-threshold : LIGHT tick  — card crosses swipe line
+   --haptic-commit    : MEDIUM thud — keep/delete committed
+   --haptic-combo     : LIGHT x2    — combo increments
+   --haptic-milestone : HEAVY + double buzz — badge unlocked
+   --haptic-reclaim   : rising ramp — GB counter slams home
+   --haptic-error     : short sharp — invalid / undo limit
+   ============================================================ */

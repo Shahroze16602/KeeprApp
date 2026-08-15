@@ -1,0 +1,45 @@
+<!-- @dsCard group="Components" viewport="700x360" name="Progress" subtitle="ProgressRing · StatNumber · StreakBadge" -->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  body{margin:0;background:var(--bg-app);font-family:var(--font-ui);padding:26px}
+  #root{display:flex;flex-direction:column;gap:26px}
+  .grp{display:flex;flex-wrap:wrap;gap:30px;align-items:center}
+  .cap{font-weight:800;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);width:100%;margin-bottom:-8px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel">
+  const { ProgressRing, StatNumber, StreakBadge } = window.KeeprDesignSystem_30a628;
+  function Demo(){
+    return (
+      <>
+        <div className="grp"><span className="cap">ProgressRing</span>
+          <ProgressRing value={0.42} size={92} showValue label="March" />
+          <ProgressRing value={0.72} size={92} color="var(--gone)" showValue label="Videos" />
+          <ProgressRing value={0.9} size={92} gradient showValue label="XP" />
+        </div>
+        <div className="grp"><span className="cap">StatNumber (counts up)</span>
+          <StatNumber value={2.4} decimals={1} suffix=" GB" label="Reclaimed" gradient size="72px" />
+          <StatNumber value={10482} label="Photos" size="52px" />
+          <StatNumber value={12} suffix="d" label="Streak" size="52px" color="var(--win)" />
+        </div>
+        <div className="grp"><span className="cap">StreakBadge</span>
+          <StreakBadge days={12} live />
+          <StreakBadge days={0} live={false} />
+        </div>
+      </>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById("root")).render(<Demo/>);
+</script>
+</body>
+</html>

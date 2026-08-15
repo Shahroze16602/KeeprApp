@@ -22,7 +22,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SystematicsApp"
+rootProject.name = "Keepr"
 include(":app")
 include(":billingslib:core")
 include(":billingslib:play")

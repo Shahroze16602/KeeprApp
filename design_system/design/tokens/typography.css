@@ -1,0 +1,67 @@
+/* ============================================================
+   KEEPR — TYPE TOKENS
+   Heavy geometric sans, tight tracking. Enormous numerals.
+   Display weights for celebration. Small caps for labels.
+   ============================================================ */
+
+:root {
+  /* Families — Archivo (workhorse + heavy display). See fonts.css. */
+  --font-display: "Archivo", "Archivo Fallback", system-ui, sans-serif;
+  --font-ui:      "Archivo", "Archivo Fallback", system-ui, sans-serif;
+  --font-num:     "Archivo", "Archivo Fallback", system-ui, sans-serif; /* tabular numerals */
+
+  /* Weights @kind font */
+  --w-regular: 500; /* @kind font */
+  --w-medium:  600; /* @kind font */
+  --w-bold:    700; /* @kind font */
+  --w-heavy:   800; /* @kind font */
+  --w-black:   900; /* @kind font */
+
+  /* Type scale (px). Mobile-first; display sizes are for celebration. */
+  --t-label:   12px;   /* SMALL CAPS labels @kind font */
+  --t-caption: 13px;   /* @kind font */
+  --t-body:    16px;   /* @kind font */
+  --t-lead:    18px;   /* @kind font */
+  --t-h3:      22px;   /* @kind font */
+  --t-h2:      28px;   /* @kind font */
+  --t-h1:      36px;   /* @kind font */
+  --t-display: 52px;   /* screen titles @kind font */
+  --t-mega:    96px;   /* count-up counters @kind font */
+  --t-colossal:140px;  /* milestone slam @kind font */
+
+  /* Tracking — tight on display, opened on labels */
+  --track-tight:  -0.03em;  /* @kind font */
+  --track-snug:   -0.015em; /* @kind font */
+  --track-normal: 0em;      /* @kind font */
+  --track-label:  0.12em;   /* @kind font */
+  --track-mega:   -0.045em; /* @kind font */
+
+  /* Line heights */
+  --lh-tight:   0.92;   /* @kind font */
+  --lh-snug:    1.05;   /* @kind font */
+  --lh-body:    1.45;   /* @kind font */
+}
+
+/* ---- Reusable type-role helpers (optional, tokenized) ---- */
+.k-label {
+  font-family: var(--font-ui);
+  font-weight: var(--w-heavy);
+  font-size: var(--t-label);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  line-height: 1;
+}
+.k-num {
+  font-family: var(--font-num);
+  font-weight: var(--w-black);
+  letter-spacing: var(--track-mega);
+  line-height: var(--lh-tight);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+.k-display {
+  font-family: var(--font-display);
+  font-weight: var(--w-black);
+  letter-spacing: var(--track-tight);
+  line-height: var(--lh-snug);
+}

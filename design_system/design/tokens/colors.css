@@ -1,0 +1,120 @@
+/* ============================================================
+   KEEPR — COLOR TOKENS
+   High-saturation, high-contrast. Warm KEEP, cool GONE.
+   Deep rich neutrals so photos pop. Dark is the hero surface;
+   light is fully designed, not derived.
+   ============================================================ */
+
+:root {
+  /* ---- RAW PALETTE: KEEP (warm) ---- */
+  --keep-100: #FFE9D4;
+  --keep-300: #FFB877;
+  --keep-500: #FF6B2C;   /* core KEEP */
+  --keep-600: #F2531A;
+  --keep-700: #C93E10;
+  --keep-grad: linear-gradient(135deg, #FFB13C 0%, #FF6B2C 55%, #F04E12 100%); /* @kind color */
+
+  /* ---- RAW PALETTE: GONE (cool) ---- */
+  --gone-100: #D2F4FF;
+  --gone-300: #6FD6FF;
+  --gone-500: #00B8F0;   /* core GONE */
+  --gone-600: #0A97E6;
+  --gone-700: #0E6FCC;
+  --gone-grad: linear-gradient(135deg, #3ED8FF 0%, #00B8F0 50%, #2E6BFF 100%); /* @kind color */
+
+  /* ---- RAW PALETTE: REWARD (gold / reclaimed) ---- */
+  --reward-300: #FFE38A;
+  --reward-500: #FFC63C;  /* GB reclaimed, XP, milestone gold */
+  --reward-700: #E39A00;
+  --reward-grad: linear-gradient(135deg, #FFE24D 0%, #FFB800 55%, #FF7A00 100%); /* @kind color */
+
+  /* ---- RAW PALETTE: WIN (streak green) ---- */
+  --win-500: #2ED77E;
+  --win-700: #16A85C;
+
+  /* ---- RAW NEUTRALS: deep, faintly cool charcoals ---- */
+  --n-0:   #FFFFFF;
+  --n-50:  #F5F2EC;
+  --n-100: #E8E3D9;
+  --n-200: #CFC9BC;
+  --n-300: #A7A296;
+  --n-400: #726E66;
+  --n-500: #45423D;
+  --n-600: #2C2A27;
+  --n-700: #201E1C;
+  --n-800: #171614;
+  --n-900: #0F0E0D;
+  --n-950: #080807;
+
+  /* ============================================================
+     SEMANTIC TOKENS — DARK (default / hero surface)
+     ============================================================ */
+  --bg-app:        #0F0E0D;
+  --bg-app-2:      #171614;      /* raised base behind cards */
+  --surface-card:  #201E1C;      /* chrome panels, tiles */
+  --surface-card-2:#2C2A27;      /* nested / hover */
+  --surface-inset: #14110F;      /* wells, tracks */
+  --surface-photo: #000000;      /* full-bleed photo backdrop */
+
+  --border-hard:   #000000;      /* the chunky outline — always ink */
+  --border-soft:   #35322E;      /* quiet dividers */
+  --border-card:   #000000;
+
+  --text-strong:   #FFFFFF;
+  --text-body:     #E8E3D9;
+  --text-muted:    #A7A296;
+  --text-faint:    #8E897F;
+  --text-on-accent:#0F0E0D;      /* dark ink on bright fills */
+
+  --keep:          var(--keep-500);
+  --keep-ink:      #0F0E0D;
+  --keep-wash:     rgba(255,107,44,0.22);
+  --gone:          var(--gone-500);
+  --gone-ink:      #04121A;
+  --gone-wash:     rgba(0,184,240,0.22);
+  --reward:        var(--reward-500);
+  --win:           var(--win-500);
+
+  /* pressable button depth: the hard offset shadow color */
+  --depth-shadow:  #000000;
+  --sticker-outline:#000000;
+
+  color-scheme: dark;
+}
+
+/* ============================================================
+   SEMANTIC TOKENS — LIGHT (fully designed)
+   Warm paper, ink outlines stay black for the sticker look.
+   ============================================================ */
+[data-theme="light"] {
+  --bg-app:        #FBF6EC;
+  --bg-app-2:      #F5EFE1;
+  --surface-card:  #FFFFFF;
+  --surface-card-2:#FBF6EC;
+  --surface-inset: #EFE7D7;
+  --surface-photo: #1B1815;
+
+  --border-hard:   #14110F;
+  --border-soft:   #E3D9C6;
+  --border-card:   #14110F;
+
+  --text-strong:   #14110F;
+  --text-body:     #2C2A27;
+  --text-muted:    #726E66;
+  --text-faint:    #726E66;
+  --text-on-accent:#0F0E0D;
+
+  --keep:          var(--keep-500);
+  --keep-ink:      #2B1005;
+  --keep-wash:     rgba(255,107,44,0.18);
+  --gone:          var(--gone-500);
+  --gone-ink:      #04121A;
+  --gone-wash:     rgba(0,184,240,0.18);
+  --reward:        #F5A800;
+  --win:           var(--win-700);
+
+  --depth-shadow:  #14110F;
+  --sticker-outline:#14110F;
+
+  color-scheme: light;
+}

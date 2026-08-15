@@ -1,0 +1,111 @@
+Splash
+- splash_scr_launch
+
+Language
+- lang_scr_launch
+- lang_scr_back_clck
+- lang_scr_continue_clck
+
+Onboarding
+- intro_scr_launch
+- intro_scr_continue_clck
+- intro_scr_privacy_clck
+
+Media Access
+- access_scr_launch
+- access_scr_allow_clck
+- access_scr_select_clck
+- access_scr_later_clck
+
+Month Picker
+- months_scr_launch
+- months_scr_prem_clck
+- months_scr_settings_clck
+- months_scr_month_clck
+
+Selected Photos
+- selected_scr_launch
+
+Cleanup
+- clean_scr_launch
+- clean_scr_back_clck
+- clean_scr_review_clck
+- clean_scr_keep_clck
+- clean_scr_delete_clck
+- clean_scr_undo_clck
+
+Media Recovery
+- recovery_scr_launch
+
+Review
+- review_scr_launch
+- review_scr_back_clck
+- review_scr_move_clck
+- review_scr_continue_clck
+- review_scr_delete_clck
+- review_scr_finish_clck
+- review_scr_save_clck
+
+Deletion Confirmation
+- confirm_scr_launch
+- confirm_scr_delete_clck
+- confirm_scr_back_clck
+
+Deletion Progress
+- delete_scr_launch
+
+Completion
+- complete_scr_launch
+- complete_scr_months_clck
+- complete_scr_rate_clck
+
+Settings
+- settings_scr_launch
+- settings_scr_back_clck
+- settings_scr_lang_clck
+- settings_scr_access_clck
+- settings_scr_analytics_clck
+- settings_scr_privacy_clck
+- settings_scr_feedback_clck
+- settings_scr_rate_clck
+- settings_scr_intro_clck
+- settings_scr_reset_clck
+
+Analytics Consent
+- analytics_scr_launch
+- analytics_scr_enable_clck
+- analytics_scr_disable_clck
+
+Privacy
+- privacy_scr_launch
+
+Feedback
+- feedback_scr_launch
+- feedback_scr_share_clck
+
+Rate
+- rate_scr_launch
+- rate_scr_play_clck
+
+Reset
+- reset_scr_launch
+
+Permission Denied
+- denied_scr_launch
+
+Empty Library
+- empty_scr_launch
+
+Resume
+- resume_scr_launch
+
+Partial Deletion
+- partial_scr_launch
+
+Premium
+- premium_scr_launch
+- premium_scr_back_clck
+- premium_scr_close_clck
+- premium_scr_buy_clck
+- premium_scr_privacy_clck
+- premium_scr_terms_clck

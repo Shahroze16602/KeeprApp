@@ -1,0 +1,52 @@
+<!-- @dsCard group="Components" viewport="700x340" name="Feedback" subtitle="Stamp · ComboCounter · Badge" -->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  body{margin:0;background:var(--bg-app);font-family:var(--font-ui);padding:30px}
+  #root{display:flex;flex-direction:column;gap:30px}
+  .grp{display:flex;flex-wrap:wrap;gap:26px;align-items:center}
+  .cap{font-weight:800;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);width:100%;margin-bottom:-10px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel">
+  const { Stamp, ComboCounter, Badge } = window.KeeprDesignSystem_30a628;
+  function Demo(){
+    return (
+      <>
+        <div className="grp"><span className="cap">Stamp</span>
+          <Stamp kind="keep" size="md" />
+          <Stamp kind="gone" size="md" />
+          <Stamp kind="super" size="md" />
+        </div>
+        <div className="grp"><span className="cap">ComboCounter</span>
+          <ComboCounter combo={3} />
+          <ComboCounter combo={7} />
+        </div>
+        <div className="grp"><span className="cap">Badge — pill</span>
+          <Badge tone="reward" icon="⚡">New</Badge>
+          <Badge tone="keep">Kept</Badge>
+          <Badge tone="gone">Queued</Badge>
+          <Badge tone="win">Streak</Badge>
+          <Badge tone="ink">Duplicate</Badge>
+        </div>
+        <div className="grp"><span className="cap">Badge — milestone</span>
+          <Badge variant="milestone" tone="reward" icon="🏆" label="photos">1K</Badge>
+          <Badge variant="milestone" tone="win" icon="⚡" label="photos">100</Badge>
+          <Badge variant="milestone" tone="neutral" label="photos" locked>10K</Badge>
+        </div>
+      </>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById("root")).render(<Demo/>);
+</script>
+</body>
+</html>

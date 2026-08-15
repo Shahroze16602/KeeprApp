@@ -2,23 +2,23 @@
 <defaultsMap>
     <entry>
         <key>ads_enabled</key>
-        <value>true</value>
+        <value>false</value>
     </entry>
     <entry>
         <key>billing_enabled</key>
-        <value>true</value>
+        <value>false</value>
     </entry>
     <entry>
         <key>language_session_count</key>
-        <value>2</value>
+        <value>1</value>
     </entry>
     <entry>
         <key>onboarding_session_count</key>
-        <value>2</value>
+        <value>1</value>
     </entry>
     <entry>
         <key>premium_1_session_count</key>
-        <value>2</value>
+        <value>1</value>
     </entry>
     <entry>
         <key>premium_2_session_count</key>
