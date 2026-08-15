@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<defaultsMap>
+    <entry>
+        <key>ads_enabled</key>
+        <value>true</value>
+    </entry>
+    <entry>
+        <key>billing_enabled</key>
+        <value>true</value>
+    </entry>
+    <entry>
+        <key>language_session_count</key>
+        <value>2</value>
+    </entry>
+    <entry>
+        <key>onboarding_session_count</key>
+        <value>2</value>
+    </entry>
+    <entry>
+        <key>premium_1_session_count</key>
+        <value>2</value>
+    </entry>
+    <entry>
+        <key>premium_2_session_count</key>
+        <value>0</value>
+    </entry>
+    <entry>
+        <key>shift_splash_ad_to_premium</key>
+        <value>1</value>
+    </entry>
+    <entry>
+        <key>premium_1_offer_id</key>
+        <value>7days_upfront:7days-upfront</value>
+    </entry>
+    <entry>
+        <key>premium_2_offer_id</key>
+        <value>3days_free:3days-free</value>
+    </entry>
+    <entry>
+        <key>premium_ads_remove_offer_id</key>
+        <value>remove_ads:remove-ads</value>
+    </entry>
+</defaultsMap>

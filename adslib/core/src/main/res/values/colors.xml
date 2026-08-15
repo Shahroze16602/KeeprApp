@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="adTextColor">#000000</color>
+    <color name="adCTAColor">#1252D3</color>
+    <color name="adCTATextColor">#FFFFFF</color>
+    <color name="adBgColor">#F1F1F1</color>
+</resources>
