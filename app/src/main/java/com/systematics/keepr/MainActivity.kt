@@ -29,10 +29,7 @@ class MainActivity : AppCompatActivity() {
     private val isAdsEnabled: IsAdsEnabledUseCase by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
-        )
+        enableEdgeToEdge()
 
         super.onCreate(savedInstanceState)
         setContent {

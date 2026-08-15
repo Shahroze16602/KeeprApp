@@ -36,7 +36,7 @@ class PrivacyPolicyViewModel : ViewModel() {
     }
 
     private companion object {
-        // Replace with the published production privacy-policy URL.
-        const val PRIVACY_POLICY_URL = ""
+        // Temporary connectivity test URL. Replace with the published privacy policy URL.
+        const val PRIVACY_POLICY_URL = "https://www.google.com"
     }
 }

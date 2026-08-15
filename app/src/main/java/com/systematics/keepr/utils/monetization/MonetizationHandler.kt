@@ -71,6 +71,7 @@ class MonetizationHandler(
     private var currentActivity: Activity? = null
 
     private var initializationStatus: InitializationStatus = InitializationStatus.Uninitialized
+    private var setupComplete = false
 
     private var alreadyDeferred = false
 
@@ -100,6 +101,8 @@ class MonetizationHandler(
     }
 
     fun setupMonetization(application: Application) {
+        if (setupComplete) return
+        setupComplete = true
         application.registerActivityLifecycleCallbacks(this)
         monetizationApp = MonetizationApp(
             context = application,

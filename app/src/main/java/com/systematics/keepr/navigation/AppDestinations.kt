@@ -19,12 +19,9 @@ class AppDestinations(private val navController: NavController) {
     val deletion = { navController.safe(Routes.DeletionProgressRoutes) }
     val completion = { navController.safe(Routes.CompletionRoutes) }
     val privacy = { navController.safe(Routes.PrivacyPolicyScreenRoutes) }
-    val analytics = { navController.safe(Routes.AnalyticsConsentRoutes) }
     val feedback = { navController.safe(Routes.FeedbackRoutes) }
     val rate = { navController.safe(Routes.RateUsRoutes) }
-    val reset = { navController.safe(Routes.ResetKeeprRoutes) }
     val denied: (Boolean) -> Unit = { navController.safe(Routes.PermissionDeniedRoutes(it)) }
-    val empty: (String?) -> Unit = { navController.safe(Routes.EmptyLibraryRoutes(it)) }
     val resume = { navController.safe(Routes.ResumeSessionRoutes) }
     val partial = { navController.safe(Routes.PartialDeletionRoutes) }
     private fun NavController.safe(route: Any) {

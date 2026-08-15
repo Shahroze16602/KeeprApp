@@ -1,5 +1,8 @@
 package com.systematics.keepr.presentation.keepr
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
@@ -19,13 +22,21 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.*
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
+import androidx.core.view.WindowCompat
 import com.systematics.keepr.R
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
 
 data class KeeprPalette(
     val app: Color, val appRaised: Color, val card: Color, val cardRaised: Color, val inset: Color,
@@ -47,6 +58,16 @@ val KeeprLightPalette = KeeprPalette(
 val LocalKeeprPalette = staticCompositionLocalOf { KeeprDarkPalette }
 val LocalKeeprReducedMotion = staticCompositionLocalOf { false }
 val LocalKeeprHaptics = staticCompositionLocalOf { true }
+
+internal fun keeprContentColorFor(background: Color): Color {
+    val backgroundLuminance = background.luminance()
+    val dark = Color(0xFF14110F)
+    val light = Color.White
+    val darkContrast = (backgroundLuminance + .05f) / (dark.luminance() + .05f)
+    val lightContrast = (light.luminance() + .05f) / (backgroundLuminance + .05f)
+    return if (darkContrast >= lightContrast) dark else light
+}
+
 object KeeprDimens {
     val space1 = 4.dp; val space2 = 8.dp; val space3 = 12.dp; val space4 = 16.dp; val space5 = 20.dp
     val space6 = 24.dp; val space8 = 32.dp; val radiusXs = 8.dp; val radiusSm = 12.dp
@@ -59,6 +80,18 @@ object KeeprTypography {
     val numeral = TextStyle(fontFamily = Archivo, fontWeight = FontWeight.Black, letterSpacing = (-0.8).sp)
 }
 @Composable fun KeeprTheme(dark: Boolean, reducedMotion: Boolean, haptics: Boolean, content: @Composable () -> Unit) {
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val activity = view.context.findActivity()
+            if (activity != null) {
+                val window = activity.window
+                val insetsController = WindowCompat.getInsetsController(window, view)
+                insetsController.isAppearanceLightStatusBars = !dark
+                insetsController.isAppearanceLightNavigationBars = !dark
+            }
+        }
+    }
     CompositionLocalProvider(
         LocalKeeprPalette provides if (dark) KeeprDarkPalette else KeeprLightPalette,
         LocalKeeprReducedMotion provides reducedMotion, LocalKeeprHaptics provides haptics, content = content
@@ -104,7 +137,11 @@ enum class KButtonStyle { Keep, Gone, Reward, Neutral, Ghost }
         KButtonStyle.Reward -> Brush.linearGradient(listOf(Color(0xFFFFE24D), p.rewardDark))
         KButtonStyle.Neutral -> SolidColor(p.cardRaised); KButtonStyle.Ghost -> SolidColor(Color.Transparent)
     }
-    val ink = if (style == KButtonStyle.Ghost) p.textBody else Color(0xFF0F0E0D)
+    val ink = when (style) {
+        KButtonStyle.Neutral -> keeprContentColorFor(p.cardRaised)
+        KButtonStyle.Ghost -> p.textBody
+        else -> Color(0xFF0F0E0D)
+    }
     Box(modifier.heightIn(min = 54.dp).clip(shape).background(background, shape)
         .border(if (style == KButtonStyle.Ghost) 2.dp else 3.dp, if (enabled) p.border else p.borderSoft, shape)
         .clickable(remember { MutableInteractionSource() }, null, enabled, "Activate", Role.Button, onClick)
@@ -165,11 +202,15 @@ enum class KButtonStyle { Keep, Gone, Reward, Neutral, Ghost }
 @Composable fun Badge(text: String, modifier: Modifier = Modifier, tone: Color = LocalKeeprPalette.current.reward) {
     val p = LocalKeeprPalette.current
     Box(modifier.clip(CircleShape).background(tone).border(2.dp, p.border, CircleShape).padding(horizontal = 10.dp, vertical = 5.dp)) {
-        KeeprText(text, color = Color(0xFF14110F), fontSize = 11.sp, fontWeight = FontWeight.Black)
+        KeeprText(text, color = keeprContentColorFor(tone), fontSize = 11.sp, fontWeight = FontWeight.Black)
     }
 }
 @Composable fun StreakBadge(days: Int, modifier: Modifier = Modifier) = Badge("🔥 $days day streak", modifier, LocalKeeprPalette.current.win)
-@Composable fun ComboCounter(combo: Int, modifier: Modifier = Modifier) = Badge("×$combo COMBO", modifier, LocalKeeprPalette.current.reward)
+@Composable fun ComboCounter(
+    combo: Int,
+    modifier: Modifier = Modifier,
+    tone: Color = LocalKeeprPalette.current.reward,
+) = Badge("×$combo COMBO", modifier, tone)
 @Composable fun Stamp(text: String, modifier: Modifier = Modifier, tone: Color = LocalKeeprPalette.current.keep) {
     Box(modifier.rotate(-8f).border(3.dp, tone, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 6.dp)) {
         KeeprText(text.uppercase(), color = tone, fontSize = 16.sp, fontWeight = FontWeight.Black)

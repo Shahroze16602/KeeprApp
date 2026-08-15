@@ -1,6 +1,6 @@
 package com.systematics.keepr.presentation.keepr
 
-import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,6 +22,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.systematics.keepr.R
 import com.systematics.keepr.data.keepr.*
@@ -32,6 +34,7 @@ import org.koin.compose.koinInject
 fun ReviewScreen(
     onBack: () -> Unit,
     onSave: () -> Unit,
+    onStartOver: () -> Unit,
     onConfirm: () -> Unit,
     onFinish: () -> Unit,
     controller: KeeprController = koinInject(),
@@ -39,14 +42,24 @@ fun ReviewScreen(
     AnalyticsLaunch("review_scr_launch")
     val state by controller.state.collectAsStateWithLifecycle()
     val session = state.session
+    val allReviewed = session != null && session.decisions.size >= session.media.size
+    val handleBack = { if (allReviewed) onSave() else onBack() }
+    BackHandler(onBack = handleBack)
     val p = LocalKeeprPalette.current
     val events = com.systematics.keepr.utils.providers.LocalAppLogEvents.current
     var tab by rememberSaveable { mutableStateOf(MediaDecision.Delete) }
+    var pendingMoveUri by rememberSaveable { mutableStateOf<String?>(null) }
     val shown = when (tab) { MediaDecision.Keep -> session?.keep; MediaDecision.Delete -> session?.delete; else -> session?.unavailable }.orEmpty()
     val deleteBytes = session?.delete?.sumOf { it.media.sizeBytes ?: 0L } ?: 0
+
+    fun movePhoto(uri: String) {
+        session?.decisions?.firstOrNull { it.media.uri == uri } ?: return
+        controller.moveDecision(uri)
+    }
+
     Column(Modifier.fillMaxSize().background(p.app).systemBarsPadding()) {
         KeeprHeader("Almost done", "Review ${session?.title ?: ""}", {
-            events.loadEvents("review_scr_back_clck"); onBack()
+            events.loadEvents("review_scr_back_clck"); handleBack()
         })
         Row(Modifier.fillMaxWidth().padding(18.dp, 6.dp, 18.dp, 10.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             ReviewTab("Keep", session?.keep?.size ?: 0, tab == MediaDecision.Keep, p.keep) { tab = MediaDecision.Keep }
@@ -67,7 +80,9 @@ fun ReviewScreen(
                     Modifier.aspectRatio(.75f).clip(RoundedCornerShape(KeeprDimens.radiusSm))
                         .border(2.dp, when (row.decision) { MediaDecision.Keep -> p.keep; MediaDecision.Delete -> p.gone; else -> p.reward }, RoundedCornerShape(KeeprDimens.radiusSm))
                         .clickable(enabled = row.decision != MediaDecision.Unavailable) {
-                            events.loadEvents("review_scr_move_clck"); controller.moveDecision(row.media.uri)
+                            events.loadEvents("review_scr_move_clck")
+                            if (controller.hasSeenReviewMoveHint()) movePhoto(row.media.uri)
+                            else pendingMoveUri = row.media.uri
                         }
                 ) {
                     AsyncMediaImage(row.media, Modifier.fillMaxSize())
@@ -80,7 +95,6 @@ fun ReviewScreen(
             }
         }
         Column(Modifier.fillMaxWidth().background(p.appRaised).padding(18.dp, 10.dp)) {
-            val allReviewed = session != null && session.decisions.size >= session.media.size
             when {
                 !allReviewed -> KButton("Continue sorting", {
                     events.loadEvents("review_scr_continue_clck"); onBack()
@@ -93,7 +107,74 @@ fun ReviewScreen(
                 }, Modifier.fillMaxWidth(), icon = painterResource(R.drawable.ic_shield))
             }
             Spacer(Modifier.height(7.dp))
+            KButton("Start over", {
+                events.loadEvents("review_scr_restart_clck"); onStartOver()
+            }, Modifier.fillMaxWidth(), KButtonStyle.Neutral)
+            Spacer(Modifier.height(7.dp))
             KButton("Save for later", { events.loadEvents("review_scr_save_clck"); onSave() }, Modifier.fillMaxWidth(), KButtonStyle.Ghost)
+        }
+    }
+    if (pendingMoveUri != null) {
+        ReviewMoveHintDialog(
+            onDismiss = { pendingMoveUri = null },
+            onMove = {
+                val uri = pendingMoveUri
+                pendingMoveUri = null
+                controller.markReviewMoveHintSeen()
+                if (uri != null) movePhoto(uri)
+            },
+        )
+    }
+}
+
+@Composable
+private fun ReviewMoveHintDialog(onDismiss: () -> Unit, onMove: () -> Unit) {
+    val p = LocalKeeprPalette.current
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .wrapContentHeight()
+                    .clip(RoundedCornerShape(KeeprDimens.radiusXl))
+                    .background(p.appRaised)
+                    .border(4.dp, p.border, RoundedCornerShape(KeeprDimens.radiusXl))
+                    .padding(22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                HardSurface(
+                    modifier = Modifier.size(70.dp),
+                    radius = KeeprDimens.radiusLg,
+                    background = p.reward.copy(alpha = .22f),
+                    borderColor = p.reward,
+                    shadowX = 4.dp,
+                    shadowY = 5.dp,
+                ) {
+                    androidx.compose.foundation.Image(
+                        painterResource(R.drawable.ic_review),
+                        contentDescription = null,
+                        modifier = Modifier.align(Alignment.Center).size(34.dp),
+                        colorFilter = ColorFilter.tint(p.reward),
+                    )
+                }
+                Spacer(Modifier.height(18.dp))
+                Heading("Move photos between lists", size = 24.sp, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(9.dp))
+                KeeprText(
+                    "Tapping a photo switches it between Keep and Delete. You can tap it again to move it back.",
+                    modifier = Modifier.fillMaxWidth(),
+                    color = p.textMuted,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(20.dp))
+                KButton("Move photo", onMove, Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
+                KButton("Cancel", onDismiss, Modifier.fillMaxWidth(), KButtonStyle.Ghost)
+            }
         }
     }
 }
@@ -107,7 +188,7 @@ private fun RowScope.ReviewTab(label: String, count: Int, selected: Boolean, ton
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        KeeprText("$label $count", color = if (selected) Color(0xFF14110F) else p.textMuted, fontSize = 12.sp, fontWeight = FontWeight.Black)
+        KeeprText("$label $count", color = if (selected) keeprContentColorFor(tone) else p.textMuted, fontSize = 12.sp, fontWeight = FontWeight.Black)
     }
 }
 

@@ -1,12 +1,17 @@
 package com.systematics.keepr.presentation.keepr
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.SystemClock
 import android.util.LruCache
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
@@ -14,7 +19,11 @@ import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
@@ -61,12 +70,19 @@ private val mediaBitmapCache = object : LruCache<String, ImageBitmap>(32 * 1024)
             .toInt()
 }
 
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
 fun Long.bytesLabel(): String = when {
     this >= 1024L * 1024 * 1024 -> "%.2f GB".format(this / (1024.0 * 1024 * 1024))
     this >= 1024L * 1024 -> "%.1f MB".format(this / (1024.0 * 1024))
     else -> "$this B"
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MonthPickerScreen(
     onSettings: () -> Unit,
@@ -75,28 +91,36 @@ fun MonthPickerScreen(
     onStart: (String, String, Boolean) -> Unit,
     onResume: (String, String) -> Unit,
     onPermission: () -> Unit,
-    onEmpty: () -> Unit,
     onSelected: () -> Unit,
     controller: KeeprController = koinInject(),
     isAdsEnabled: IsAdsEnabledUseCase = koinInject(),
     markFirstSessionCompleted: MarkFirstSessionCompletedUseCase = koinInject(),
-    monetizationInstall: MonetizationInstall = monetizationInject(),
 ) {
     AnalyticsLaunch("months_scr_launch")
     val state by controller.state.collectAsStateWithLifecycle()
     val p = LocalKeeprPalette.current
     val events = LocalAppLogEvents.current
+    val activity = LocalContext.current.findActivity()
+    var showExitSheet by rememberSaveable { mutableStateOf(false) }
+    val exitSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val adsEnabled = isAdsEnabled()
+    val hasPhotoAccess = controller.hasFullAccess() || controller.hasPartialAccess()
+    val monetizationInstall: MonetizationInstall? =
+        if (adsEnabled) monetizationInject() else null
     LaunchedEffect(Unit) {
         markFirstSessionCompleted()
-        if (isAdsEnabled()) monetizationInstall.executeBreakPoint(AdBreakPoint.BP_HOME_APPEAR)
+        if (adsEnabled) monetizationInstall?.executeBreakPoint(AdBreakPoint.BP_HOME_APPEAR)
         controller.refreshCatalog()
     }
+    BackHandler(enabled = !showExitSheet) { showExitSheet = true }
     Column(Modifier.fillMaxSize().background(p.app).systemBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(18.dp, 8.dp, 18.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
             KeeprWord(Modifier.weight(1f), 29.sp)
-            KIconButton(painterResource(R.drawable.ic_premium), "Remove ads", {
-                events.loadEvents("months_scr_prem_clck"); onPremium()
-            }, Modifier.padding(end = 10.dp), tint = p.reward)
+            if (showPremium) {
+                KIconButton(painterResource(R.drawable.ic_premium), "Remove ads", {
+                    events.loadEvents("months_scr_prem_clck"); onPremium()
+                }, Modifier.padding(end = 10.dp), tint = p.reward)
+            }
             KIconButton(painterResource(R.drawable.ic_settings), "Settings", {
                 events.loadEvents("months_scr_settings_clck"); onSettings()
             })
@@ -158,7 +182,7 @@ fun MonthPickerScreen(
                     EmptyPanel("Photo access needed", "Your saved progress is safe. Allow Android photo access to build the month catalog.", "Review access", onPermission, R.drawable.ic_lock)
                 }
                 CatalogStatus.Empty -> item {
-                    EmptyPanel("Nothing to sort", "Keepr couldn't find accessible photos. Refresh or change which photos Android allows.", "View options", onEmpty, R.drawable.ic_photo)
+                    EmptyPanel("Nothing to sort", "Keepr couldn't find accessible photos. Refresh or change which photos Android allows.", "Review access", onPermission, R.drawable.ic_photo)
                 }
                 CatalogStatus.Error -> item {
                     EmptyPanel("Scan paused", state.error ?: "Keepr couldn't read the camera roll.", "Try again", controller::refreshCatalog, R.drawable.ic_warning)
@@ -182,7 +206,31 @@ fun MonthPickerScreen(
                 }
             }
         }
-        if (isAdsEnabled()) InlineAdShowComponent(modifier = Modifier.fillMaxWidth(), placementKey = AdsPlacement.Inlines.HOME_BOTTOM)
+        if (adsEnabled) InlineAdShowComponent(modifier = Modifier.fillMaxWidth(), placementKey = AdsPlacement.Inlines.HOME_BOTTOM)
+    }
+    if (showExitSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showExitSheet = false },
+            sheetState = exitSheetState,
+            containerColor = p.card,
+            contentColor = p.textBody,
+            scrimColor = Color.Black.copy(alpha = .7f),
+            shape = RoundedCornerShape(topStart = KeeprDimens.radiusXl, topEnd = KeeprDimens.radiusXl),
+        ) {
+            Column(
+                Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Heading("Exit Keepr?", size = 22.sp)
+                Spacer(Modifier.height(8.dp))
+                KeeprText("Are you sure you want to exit?", color = p.textMuted, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(20.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    KButton("Cancel", { showExitSheet = false }, Modifier.weight(1f), KButtonStyle.Neutral)
+                    KButton("Exit", { showExitSheet = false; activity?.finish() }, Modifier.weight(1f), KButtonStyle.Gone)
+                }
+            }
+        }
     }
 }
 
@@ -249,11 +297,9 @@ fun CleanupSessionScreen(
     val density = LocalDensity.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val useHaptics = LocalKeeprHaptics.current
-    val reducedMotion = LocalKeeprReducedMotion.current
     val offset = remember { Animatable(0f) }
     var cardWidth by remember { mutableFloatStateOf(1f) }
     var dragStart by remember { mutableLongStateOf(0L) }
-    var loadError by remember { mutableStateOf(false) }
     var locallyCommittedUri by remember(session?.id) { mutableStateOf<String?>(null) }
     var commitInFlight by remember(session?.id) { mutableStateOf(false) }
     val pending = remember(session?.media, session?.decisions, locallyCommittedUri) {
@@ -263,27 +309,27 @@ fun CleanupSessionScreen(
         }.orEmpty()
     }
     val current = pending.firstOrNull()
+    var loadError by remember(current?.uri) { mutableStateOf(false) }
+    var loadAttempt by remember(current?.uri) { mutableIntStateOf(0) }
+    val nextMedia = pending.getOrNull(1)
 
     fun commit(decision: MediaDecision) {
         val committedUri = current?.uri ?: return
         if (loadError || commitInFlight) return
         commitInFlight = true
         scope.launch {
-            if (useHaptics) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            val target = if (decision == MediaDecision.Keep) cardWidth * 1.25f else -cardWidth * 1.25f
-            if (reducedMotion) offset.snapTo(target) else offset.animateTo(target, spring(dampingRatio = .72f, stiffness = 420f))
-            events.loadEvents(if (decision == MediaDecision.Keep) "clean_scr_keep_clck" else "clean_scr_delete_clck")
-            controller.decide(decision)
-            // Remove only the departed item from the local stack. The promoted card
-            // is rendered at rest while the durable decision is being persisted.
-            locallyCommittedUri = committedUri
-            offset.snapTo(0f)
-            loadError = false
+            try {
+                if (useHaptics) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                // Promote and unlock the next card immediately. decide() updates the
+                // in-memory session synchronously and queues the durable DB write on IO.
+                locallyCommittedUri = committedUri
+                offset.snapTo(0f)
+                commitInFlight = false
 
-            // Restore interaction if persistence fails instead of leaving cleanup locked.
-            delay(5_000)
-            if (locallyCommittedUri == committedUri && controller.state.value.session?.current?.uri == committedUri) {
-                locallyCommittedUri = null
+                controller.decide(decision)
+                events.loadEvents(if (decision == MediaDecision.Keep) "clean_scr_keep_clck" else "clean_scr_delete_clck")
+            } finally {
+                offset.snapTo(0f)
                 commitInFlight = false
             }
         }
@@ -293,7 +339,6 @@ fun CleanupSessionScreen(
         val committedUri = locallyCommittedUri ?: return@LaunchedEffect
         if (session?.current?.uri != committedUri) {
             locallyCommittedUri = null
-            commitInFlight = false
         }
     }
 
@@ -333,12 +378,15 @@ fun CleanupSessionScreen(
                         androidx.compose.foundation.Image(painterResource(R.drawable.ic_warning), null, Modifier.size(58.dp), colorFilter = ColorFilter.tint(p.gone))
                         Spacer(Modifier.height(14.dp)); Heading("Couldn't load this photo", size = 22.sp, textAlign = TextAlign.Center)
                         Spacer(Modifier.height(8.dp)); KeeprText("No keep or delete was recorded. Retry or skip it for now.", color=p.textMuted,textAlign=TextAlign.Center)
-                        Spacer(Modifier.height(18.dp)); KButton("Retry", { loadError=false }, Modifier.fillMaxWidth())
+                        Spacer(Modifier.height(18.dp)); KButton("Retry", {
+                            loadError = false
+                            loadAttempt++
+                        }, Modifier.fillMaxWidth())
                         Spacer(Modifier.height(8.dp)); KButton("More details", onRecovery, Modifier.fillMaxWidth(), KButtonStyle.Neutral)
                     }
                 }
             } else {
-                val next = pending.getOrNull(1)
+                val next = nextMedia
                 val stackedOffset = with(density) { 12.dp.toPx() }
                 val visualOffset = if (locallyCommittedUri == null) offset.value else 0f
                 if (next != null) {
@@ -356,12 +404,15 @@ fun CleanupSessionScreen(
                         AsyncMediaImage(next, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                     }
                 }
-                if (state.combo >= 2) ComboCounter(state.combo, Modifier.align(Alignment.TopEnd).zIndex(5f))
+                AnimatedComboCounter(
+                    combo = state.combo,
+                    modifier = Modifier.align(Alignment.TopEnd).zIndex(5f).padding(top = 24.dp, end = 24.dp),
+                )
                 PhotoCard(
                     Modifier.fillMaxSize().zIndex(1f).onSizeChanged { cardWidth = it.width.toFloat() }
                         .graphicsLayer { translationX = visualOffset; rotationZ = (visualOffset / cardWidth) * 12f }
-                        .pointerInput(current.uri, commitInFlight) {
-                            if (commitInFlight) return@pointerInput
+                        .pointerInput(current.uri, commitInFlight, loadError) {
+                            if (commitInFlight || loadError) return@pointerInput
                             detectDragGestures(
                                 onDragStart = { dragStart = SystemClock.elapsedRealtime(); scope.launch { offset.stop() } },
                                 onDragCancel = { scope.launch { offset.animateTo(0f, spring()) } },
@@ -375,7 +426,13 @@ fun CleanupSessionScreen(
                         }
                 ) {
                     Box(Modifier.fillMaxSize().background(Color.Black))
-                    AsyncMediaImage(current, Modifier.fillMaxSize(), onError = { loadError = true }, contentScale = ContentScale.Fit)
+                    AsyncMediaImage(
+                        media = current,
+                        modifier = Modifier.fillMaxSize(),
+                        onError = { loadError = true },
+                        contentScale = ContentScale.Fit,
+                        reloadKey = loadAttempt,
+                    )
                     Box(Modifier.fillMaxSize().background(
                         when { visualOffset > 4 -> p.keep.copy(alpha=(abs(visualOffset)/cardWidth).coerceAtMost(.28f))
                             visualOffset < -4 -> p.gone.copy(alpha=(abs(visualOffset)/cardWidth).coerceAtMost(.28f))
@@ -401,6 +458,77 @@ fun CleanupSessionScreen(
 }
 
 @Composable
+private fun AnimatedComboCounter(combo: Int, modifier: Modifier = Modifier) {
+    val p = LocalKeeprPalette.current
+    val haptic = LocalHapticFeedback.current
+    val useHaptics = LocalKeeprHaptics.current
+    val reducedMotion = LocalKeeprReducedMotion.current
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val pulse = remember { Animatable(1f) }
+    val vibration = remember { Animatable(0f) }
+    var previousCombo by remember { mutableIntStateOf(combo) }
+    val growth = (combo - 2).coerceIn(0, 8)
+    val baseScale = 1.12f + growth * .0375f
+    val heat = growth / 8f
+    val background by animateColorAsState(
+        targetValue = lerp(p.reward, Color(0xFFFF3B30), heat),
+        animationSpec = tween(240),
+        label = "comboHeat",
+    )
+
+    LaunchedEffect(combo) {
+        val increased = combo > previousCombo
+        previousCombo = combo
+        if (!increased || combo < 2) return@LaunchedEffect
+
+        val vibrationDistance = with(density) { (1.5f + growth * .45f).dp.toPx() }
+        val vibrationCount = 3 + growth / 4
+        val vibrationDuration = (38 - growth).coerceAtLeast(28)
+        val popScale = 1.24f + growth * .018f
+        val hapticPulses = (1 + growth / 3).coerceAtMost(3)
+        coroutineScope {
+            if (useHaptics) launch {
+                repeat(hapticPulses) { index ->
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    if (index < hapticPulses - 1) delay(48)
+                }
+            }
+            if (!reducedMotion) {
+                launch {
+                    pulse.snapTo(.9f)
+                    pulse.animateTo(popScale, spring(dampingRatio = .38f, stiffness = 680f))
+                    pulse.animateTo(1f, spring(dampingRatio = .5f, stiffness = 520f))
+                }
+                launch {
+                    vibration.snapTo(0f)
+                    repeat(vibrationCount) { index ->
+                        vibration.animateTo(
+                            if (index % 2 == 0) vibrationDistance else -vibrationDistance,
+                            tween(vibrationDuration),
+                        )
+                    }
+                    vibration.animateTo(0f, tween(55))
+                }
+            }
+        }
+    }
+
+    if (combo >= 2) {
+        Box(
+            modifier.graphicsLayer {
+                scaleX = baseScale * pulse.value
+                scaleY = baseScale * pulse.value
+                translationX = vibration.value
+                rotationZ = if (layoutDirection == LayoutDirection.Ltr) 12f else -12f
+            },
+        ) {
+            ComboCounter(combo, tone = background)
+        }
+    }
+}
+
+@Composable
 fun MediaRecoveryScreen(onBack: () -> Unit, onRetry: () -> Unit, onSkip: () -> Unit) {
     AnalyticsLaunch("recovery_scr_launch")
     val p=LocalKeeprPalette.current
@@ -417,18 +545,24 @@ fun AsyncMediaImage(
     modifier: Modifier = Modifier,
     onError: () -> Unit = {},
     contentScale: ContentScale = ContentScale.Crop,
+    reloadKey: Int = 0,
 ) {
     val context=LocalContext.current
-    var bitmap by remember(media.uri) { mutableStateOf(mediaBitmapCache.get(media.uri)) }
-    LaunchedEffect(media.uri) {
+    var bitmap by remember(media.uri, reloadKey) { mutableStateOf(mediaBitmapCache.get(media.uri)) }
+    LaunchedEffect(media.uri, reloadKey) {
         if (bitmap != null) return@LaunchedEffect
         val decoded = withContext(Dispatchers.IO) {
             runCatching {
-                val source=ImageDecoder.createSource(context.contentResolver,Uri.parse(media.uri))
-                ImageDecoder.decodeBitmap(source) { decoder,info,_ ->
-                    val max=1200
-                    if(info.size.width>max||info.size.height>max) decoder.setTargetSampleSize((maxOf(info.size.width,info.size.height)/max).coerceAtLeast(1))
-                    decoder.allocator=ImageDecoder.ALLOCATOR_SOFTWARE
+                val source = ImageDecoder.createSource(context.contentResolver, Uri.parse(media.uri))
+                ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                    val max = 1200
+                    val maxDimension = maxOf(info.size.width, info.size.height)
+                    if (maxDimension > max) {
+                        decoder.setTargetSampleSize(
+                            ((maxDimension + max - 1) / max).coerceAtLeast(1)
+                        )
+                    }
+                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                 }.asImageBitmap()
             }
         }
@@ -452,11 +586,11 @@ fun KeeprHeader(kicker: String,title: String,onBack:()->Unit,tone:Color=LocalKee
 }
 
 @Composable
-fun StateScreen(icon:Int,kicker:String,title:String,body:String,tone:Color,actions:@Composable ColumnScope.()->Unit){
+fun StateScreen(icon:Int,kicker:String,title:String,body:String,tone:Color,iconTint:Color?=tone,actions:@Composable ColumnScope.()->Unit){
     val p=LocalKeeprPalette.current
     Column(Modifier.fillMaxSize().background(p.app).systemBarsPadding().padding(28.dp),horizontalAlignment=Alignment.CenterHorizontally){
         Spacer(Modifier.weight(1f));HardSurface(Modifier.size(112.dp),radius=KeeprDimens.radius2Xl){
-            androidx.compose.foundation.Image(painterResource(icon),null,Modifier.align(Alignment.Center).size(56.dp),colorFilter=ColorFilter.tint(tone))
+            androidx.compose.foundation.Image(painterResource(icon),null,Modifier.align(Alignment.Center).size(56.dp),colorFilter=iconTint?.let { ColorFilter.tint(it) })
         }
         Spacer(Modifier.height(28.dp));Kicker(kicker,color=tone);Spacer(Modifier.height(8.dp));Heading(title,Modifier.fillMaxWidth(),29.sp,TextAlign.Center)
         Spacer(Modifier.height(12.dp));KeeprText(body,Modifier.fillMaxWidth(),color=p.textMuted,fontSize=15.sp,textAlign=TextAlign.Center)

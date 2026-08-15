@@ -45,6 +45,7 @@ Review
 - review_scr_delete_clck
 - review_scr_finish_clck
 - review_scr_save_clck
+- review_scr_restart_clck
 
 Deletion Confirmation
 - confirm_scr_launch
@@ -64,6 +65,9 @@ Settings
 - settings_scr_back_clck
 - settings_scr_lang_clck
 - settings_scr_access_clck
+- settings_scr_theme_system_clck
+- settings_scr_theme_light_clck
+- settings_scr_theme_dark_clck
 - settings_scr_analytics_clck
 - settings_scr_privacy_clck
 - settings_scr_feedback_clck

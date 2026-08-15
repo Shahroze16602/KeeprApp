@@ -100,10 +100,6 @@ class AppClass : Application() {
             )
         }
 
-        // Compose monetizationInject() defaults are evaluated during the first composition.
-        // Install the UI container before MainActivity can be created; consent/network work
-        // remains deferred to MonetizationHandler's activity lifecycle callback.
-        monetizationHandler.setupMonetization(this)
         AppLocaleManager.applyLocale(getStoredLanguage())
         AppCompatDelegate.setDefaultNightMode(getThemeMode().nightMode)
 

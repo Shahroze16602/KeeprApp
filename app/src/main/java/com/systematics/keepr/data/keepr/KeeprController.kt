@@ -18,6 +18,19 @@ import kotlin.math.max
 
 enum class CatalogStatus { Idle, Loading, Ready, Empty, PermissionRequired, Error }
 enum class MediaDecision { Keep, Delete, Unavailable }
+enum class ThemeMode {
+    SYSTEM,
+    LIGHT,
+    DARK;
+
+    companion object {
+        fun fromString(value: String?): ThemeMode = when (value?.uppercase()) {
+            "LIGHT" -> LIGHT
+            "DARK" -> DARK
+            else -> SYSTEM
+        }
+    }
+}
 data class KeeprMedia(
     val uri: String,
     val takenAt: Long,
@@ -72,6 +85,7 @@ data class KeeprState(
     val monthsCleared: Int = 0,
     val reclaimedBytes: Long = 0L,
     val combo: Int = 0,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val darkMode: Boolean = true,
     val fullMotion: Boolean = true,
     val haptics: Boolean = true,
@@ -155,15 +169,42 @@ class KeeprController(private val context: Context) {
     fun decide(decision: MediaDecision) {
         val session = _state.value.session ?: return
         val item = session.current ?: return
+        val sequence = (session.decisions.maxOfOrNull { it.sequence } ?: 0) + 1
+        val now = System.currentTimeMillis()
+        val combo = if (now - lastDecisionAt <= GamificationRules.COMBO_WINDOW_MS) _state.value.combo + 1 else 1
+        val xp = _state.value.xp + GamificationRules.XP_PER_DECISION
+        val record = DecisionRecord(item, decision, sequence)
+
+        lastDecisionAt = now
+        prefs.edit().putInt(KEY_XP, xp).apply()
+        _state.update { state ->
+            val active = state.session
+            if (active?.id != session.id || active.decisions.any { it.media.uri == item.uri }) state
+            else state.copy(
+                session = active.copy(decisions = active.decisions + record),
+                combo = combo,
+                xp = xp,
+                error = null,
+            )
+        }
+
         scope.launch {
-            val seq = db.addDecision(session.id, item, decision)
-            val now = System.currentTimeMillis()
-            val combo = if (now - lastDecisionAt <= GamificationRules.COMBO_WINDOW_MS) _state.value.combo + 1 else 1
-            lastDecisionAt = now
-            val updated = session.copy(decisions = session.decisions + DecisionRecord(item, decision, seq))
-            val xp = _state.value.xp + GamificationRules.XP_PER_DECISION
-            prefs.edit().putInt(KEY_XP, xp).apply()
-            _state.update { it.copy(session = updated, combo = combo, xp = xp) }
+            runCatching { db.addDecision(session.id, item, decision, sequence) }
+                .onFailure { failure ->
+                    _state.update { state ->
+                        val active = state.session
+                        if (active?.id != session.id) state
+                        else state.copy(
+                            session = active.copy(decisions = active.decisions.filterNot {
+                                it.media.uri == item.uri && it.sequence == sequence
+                            }),
+                            combo = 0,
+                            xp = max(0, state.xp - GamificationRules.XP_PER_DECISION),
+                            error = failure.message ?: "Unable to save this decision",
+                        )
+                    }
+                    prefs.edit().putInt(KEY_XP, _state.value.xp).apply()
+                }
         }
     }
 
@@ -189,14 +230,21 @@ class KeeprController(private val context: Context) {
         }
     }
 
+    fun hasSeenReviewMoveHint(): Boolean = prefs.getBoolean(KEY_REVIEW_MOVE_HINT, false)
+
+    fun markReviewMoveHintSeen() {
+        prefs.edit().putBoolean(KEY_REVIEW_MOVE_HINT, true).apply()
+    }
+
     fun skipUnavailable() = decide(MediaDecision.Unavailable)
     fun clearCombo() = _state.update { it.copy(combo = 0) }
 
-    fun restartSession() {
+    fun restartSession(onComplete: () -> Unit = {}) {
         val session = _state.value.session ?: return
         scope.launch {
             db.clearDecisions(session.id)
             _state.update { it.copy(session = session.copy(decisions = emptyList()), combo = 0) }
+            withContext(Dispatchers.Main.immediate) { onComplete() }
         }
     }
 
@@ -288,7 +336,11 @@ class KeeprController(private val context: Context) {
         finishDeletion()
     }
 
-    fun setDarkMode(value: Boolean) { prefs.edit().putBoolean(KEY_DARK, value).apply(); _state.update { it.copy(darkMode = value) } }
+    fun setThemeMode(mode: ThemeMode) {
+        prefs.edit().putString(KEY_THEME_MODE, mode.name).putBoolean(KEY_DARK, mode == ThemeMode.DARK).apply()
+        _state.update { it.copy(themeMode = mode, darkMode = mode == ThemeMode.DARK) }
+    }
+    fun setDarkMode(value: Boolean) = setThemeMode(if (value) ThemeMode.DARK else ThemeMode.LIGHT)
     fun setFullMotion(value: Boolean) { prefs.edit().putBoolean(KEY_MOTION, value).apply(); _state.update { it.copy(fullMotion = value) } }
     fun setHaptics(value: Boolean) { prefs.edit().putBoolean(KEY_HAPTICS, value).apply(); _state.update { it.copy(haptics = value) } }
     fun setAnalytics(value: Boolean) {
@@ -325,12 +377,23 @@ class KeeprController(private val context: Context) {
         }
     }
 
-    private fun loadInitial() = KeeprState(
-        xp = prefs.getInt(KEY_XP, 0), streak = prefs.getInt(KEY_STREAK, 0),
-        monthsCleared = prefs.getInt(KEY_MONTHS, 0), reclaimedBytes = prefs.getLong(KEY_RECLAIMED, 0),
-        darkMode = prefs.getBoolean(KEY_DARK, true), fullMotion = prefs.getBoolean(KEY_MOTION, true),
-        haptics = prefs.getBoolean(KEY_HAPTICS, true), analytics = prefs.getBoolean(KEY_ANALYTICS, false),
-    )
+    private fun loadInitial(): KeeprState {
+        val savedTheme = prefs.getString(KEY_THEME_MODE, null)
+        val themeMode = if (savedTheme != null) {
+            ThemeMode.fromString(savedTheme)
+        } else if (prefs.contains(KEY_DARK)) {
+            if (prefs.getBoolean(KEY_DARK, true)) ThemeMode.DARK else ThemeMode.LIGHT
+        } else {
+            ThemeMode.SYSTEM
+        }
+        return KeeprState(
+            xp = prefs.getInt(KEY_XP, 0), streak = prefs.getInt(KEY_STREAK, 0),
+            monthsCleared = prefs.getInt(KEY_MONTHS, 0), reclaimedBytes = prefs.getLong(KEY_RECLAIMED, 0),
+            themeMode = themeMode, darkMode = themeMode == ThemeMode.DARK,
+            fullMotion = prefs.getBoolean(KEY_MOTION, true),
+            haptics = prefs.getBoolean(KEY_HAPTICS, true), analytics = prefs.getBoolean(KEY_ANALYTICS, false),
+        )
+    }
 
     private fun updateStreak(): Int {
         val today = LocalDate.now().toEpochDay()
@@ -370,7 +433,9 @@ class KeeprController(private val context: Context) {
         private const val PREFS = "keepr_state"
         private const val KEY_XP = "xp"; private const val KEY_STREAK = "streak"; private const val KEY_LAST_DAY = "last_day"
         private const val KEY_MONTHS = "months"; private const val KEY_RECLAIMED = "reclaimed"; private const val KEY_COMPLETED = "completed"
+        private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_DARK = "dark"; private const val KEY_MOTION = "motion"; private const val KEY_HAPTICS = "haptics"; private const val KEY_ANALYTICS = "analytics"
+        private const val KEY_REVIEW_MOVE_HINT = "review_move_hint_seen"
     }
 }
 
@@ -395,14 +460,14 @@ private class KeeprDb(context: Context) : SQLiteOpenHelper(context, "keepr.db", 
             ))
         }
     }
-    fun addDecision(id: Long, media: KeeprMedia, kind: MediaDecision): Int {
-        val seq = readableDatabase.rawQuery("SELECT COALESCE(MAX(seq),0)+1 FROM decision WHERE session_id=?", arrayOf(id.toString())).use { it.moveToFirst(); it.getInt(0) }
-        writableDatabase.insertWithOnConflict("decision", null, ContentValues().apply {
+    fun addDecision(id: Long, media: KeeprMedia, kind: MediaDecision, sequence: Int): Int {
+        val rowId = writableDatabase.insertWithOnConflict("decision", null, ContentValues().apply {
             put("session_id", id); put("uri", media.uri); put("kind", kind.name); put("taken", media.takenAt)
             if (media.sizeBytes == null) putNull("bytes") else put("bytes", media.sizeBytes)
-            put("width", media.width); put("height", media.height); put("seq", seq)
+            put("width", media.width); put("height", media.height); put("seq", sequence)
         }, SQLiteDatabase.CONFLICT_REPLACE)
-        touch(id); return seq
+        check(rowId != -1L) { "Unable to persist photo decision" }
+        touch(id); return sequence
     }
     fun removeDecision(id: Long, uri: String) { writableDatabase.delete("decision", "session_id=? AND uri=?", arrayOf(id.toString(), uri)); touch(id) }
     fun updateDecision(id: Long, uri: String, kind: MediaDecision) { writableDatabase.update("decision", ContentValues().apply { put("kind", kind.name) }, "session_id=? AND uri=?", arrayOf(id.toString(), uri)); touch(id) }

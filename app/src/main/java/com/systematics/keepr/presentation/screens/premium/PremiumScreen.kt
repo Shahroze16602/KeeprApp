@@ -11,14 +11,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.systematics.monetization.ui.MonetizationInstall
 import com.systematics.monetization.ui.compose.FullScreenAdShowComponent
 import com.systematics.monetization.ui.compose.models.AdAction
-import com.systematics.monetization.ui.compose.utils.monetizationInject
 import com.systematics.monetization.ui.compose.utils.showAd
 import com.systematics.monetization.ui.utils.MonetizationSharedState
 import com.systematics.keepr.utils.core.InternetController
 import com.systematics.keepr.domain.usecase.IsShiftSplashAdToPremiumUseCase
+import com.systematics.keepr.domain.usecase.IsAdsEnabledUseCase
 import com.systematics.keepr.utils.monetization.config.frontend.config.AdsPlacement
 import com.systematics.keepr.presentation.screens.premium.content.PremiumScreenContent
 import com.systematics.keepr.presentation.screens.premium.event.PremiumEvents
@@ -34,12 +33,13 @@ fun PremiumScreen(
     onNavigateToTermOfUse: () -> Unit,
     viewModel: PremiumViewModel = koinViewModel(),
     isShiftSplashAdToPremium: IsShiftSplashAdToPremiumUseCase = koinInject(),
+    isAdsEnabled: IsAdsEnabledUseCase = koinInject(),
     internetController: InternetController = koinInject(),
-    monetizationInstall: MonetizationInstall = monetizationInject()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activity = context as Activity
+    val adsEnabled = isAdsEnabled()
 
     DisposableEffect(Unit) {
         MonetizationSharedState.blockAppOpen()
@@ -55,10 +55,10 @@ fun PremiumScreen(
     }
 
     val adAction = remember { mutableStateOf<AdAction?>(null) }
-    FullScreenAdShowComponent(adAction = adAction.value)
+    if (adsEnabled) FullScreenAdShowComponent(adAction = adAction.value)
 
     val proceed: () -> Unit = {
-        if (isFromSplash && isLastPremium && isShiftSplashAdToPremium()) {
+        if (adsEnabled && isFromSplash && isLastPremium && isShiftSplashAdToPremium()) {
             adAction.showAd(AdsPlacement.FullScreens.SPLASH_ON_PREMIUM_CLOSE) { goNext() }
         } else {
             goNext()

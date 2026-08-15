@@ -23,13 +23,15 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 class SplashViewModel(
-    private val monetizationHandler: MonetizationHandler,
     private val initializeRemoteConfig: InitializeRemoteConfigUseCase,
     private val observePremiumStatusResolved: ObservePremiumStatusResolvedUseCase,
     private val isAdsEnabled: IsAdsEnabledUseCase
-) : ViewModel() {
+) : ViewModel(), KoinComponent {
+    private val monetizationHandler: MonetizationHandler by inject()
     private val monetizationInstall: MonetizationInstall by monetizationInject()
 
     private val _state = MutableStateFlow(SplashUiState())
@@ -64,12 +66,7 @@ class SplashViewModel(
 
     fun initializeSplash(activity: Activity) {
         if (!splashInitializationCalled) {
-            if (isAdsEnabled()) {
-                initializeMonetization()
-            } else {
-                monetizationInitialized.value = true
-            }
-            initializeRemoteConfig()
+            initializeRemoteConfig(activity)
             splashInitializationCalled = true
         } else {
             Log.d(
@@ -85,15 +82,21 @@ class SplashViewModel(
         viewModelScope.launch { _oneTimeUiEvents.send(SplashOneTimeUiEvents.SplashDone(adShown)) }
     }
 
-    private fun initializeRemoteConfig() {
+    private fun initializeRemoteConfig(activity: Activity) {
         viewModelScope.launch {
             runCatching { initializeRemoteConfig.invoke() }
                 .onFailure { Log.e(TAG, "initializeRemoteConfig: failed", it) }
+            if (isAdsEnabled()) {
+                monetizationHandler.setupMonetization(activity.application)
+                initializeMonetization(activity)
+            } else {
+                monetizationInitialized.value = true
+            }
             remoteFetched.value = true
         }
     }
 
-    private fun initializeMonetization() {
+    private fun initializeMonetization(activity: Activity) {
         Log.d(TAG, "initializeMonetization: monetization initializing")
         viewModelScope.launch {
             monetizationHandler.observeInitialization().collectLatest { status ->
@@ -107,6 +110,7 @@ class SplashViewModel(
                 }
             }
         }
+        monetizationHandler.initMonetizationOnActivity(activity)
     }
 
     private fun onNetworkSetupDone() {

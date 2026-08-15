@@ -56,11 +56,13 @@ fun LanguageScreen(
     viewModel: LanguageViewModel = koinViewModel(),
     isSessionGateAllowed: IsSessionGateAllowedUseCase = koinInject(),
     isAdsEnabled: IsAdsEnabledUseCase = koinInject(),
-    monetizationInstall: MonetizationInstall = monetizationInject()
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     val languages = state.filteredLanguages()
+    val adsEnabled = isAdsEnabled()
+    val monetizationInstall: MonetizationInstall? =
+        if (adsEnabled) monetizationInject() else null
 
     val applyAndMoveNext: () -> Unit = {
         val selectedLanguageCode = viewModel.persistSelection()
@@ -71,11 +73,11 @@ fun LanguageScreen(
     var preloaded by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         delay(100.milliseconds)
-        if (isAdsEnabled() && !preloaded) {
+        if (adsEnabled && !preloaded) {
             if (isSessionGateAllowed(SessionGate.ONBOARDING)) {
-                monetizationInstall.executeBreakPoint(AdBreakPoint.BP_ONBOARDING_PENDING)
+                monetizationInstall?.executeBreakPoint(AdBreakPoint.BP_ONBOARDING_PENDING)
             } else {
-                monetizationInstall.executeBreakPoint(AdBreakPoint.BP_HOME_PENDING)
+                monetizationInstall?.executeBreakPoint(AdBreakPoint.BP_HOME_PENDING)
             }
             preloaded = true
         }
@@ -169,7 +171,7 @@ fun LanguageScreen(
                 }
             }
 
-            if (isAdsEnabled()) {
+            if (adsEnabled) {
                 InlineAdShowComponent(
                     modifier = Modifier.fillMaxWidth(),
                     placementKey = AdsPlacement.Inlines.LANGUAGE_BOTTOM

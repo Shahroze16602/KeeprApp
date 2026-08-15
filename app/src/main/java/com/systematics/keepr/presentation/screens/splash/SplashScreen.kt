@@ -37,7 +37,6 @@ fun SplashScreen(
     isSessionGateAllowed: IsSessionGateAllowedUseCase = koinInject(),
     isShiftSplashAdToPremium: IsShiftSplashAdToPremiumUseCase = koinInject(),
     isAdsEnabled: IsAdsEnabledUseCase = koinInject(),
-    monetizationInstall: MonetizationInstall = monetizationInject(),
     navigateNext: () -> Unit
 ) {
 
@@ -66,6 +65,7 @@ fun SplashScreen(
     var showSplashAd by remember {
         mutableStateOf(false)
     }
+    var adsReady by rememberSaveable { mutableStateOf(false) }
 
     var adsLoaded by rememberSaveable {
         mutableStateOf(false)
@@ -75,21 +75,6 @@ fun SplashScreen(
         appLogEvents.loadEvents("splash_scr_launch")
     }
 
-    val loadNextAds = {
-        if (isAdsEnabled() && !adsLoaded) {
-            if (isSessionGateAllowed(SessionGate.PREMIUM_1)) {
-                monetizationInstall.executeBreakPoint(AdBreakPoint.BP_PREMIUM_PENDING)
-            } else if (isSessionGateAllowed(SessionGate.LANGUAGE)) {
-                monetizationInstall.executeBreakPoint(AdBreakPoint.BP_LANGUAGE_PENDING)
-            } else if (isSessionGateAllowed(SessionGate.ONBOARDING)) {
-                monetizationInstall.executeBreakPoint(AdBreakPoint.BP_ONBOARDING_PENDING)
-            } else {
-                monetizationInstall.executeBreakPoint(AdBreakPoint.BP_HOME_PENDING)
-            }
-            adsLoaded = true
-        }
-    }
-
     BackHandler(enabled = true) {
         Log.d(TAG, "SplashScreen: Back press intercepted")
     }
@@ -97,7 +82,6 @@ fun SplashScreen(
     fun launchMain() {
         increaseProgress = false
         progress = 1f
-        loadNextAds()
         navigateNext()
     }
 
@@ -112,20 +96,11 @@ fun SplashScreen(
             when (it) {
                 SplashOneTimeUiEvents.NetworkSetupDone -> {
                     if (!isAdsEnabled()) {
-                        showProgress = true
-                        increaseProgress = true
-                    } else if (isShiftSplashAdToPremium()) {
-                        monetizationInstall.loadAd(
-                            AdGroupType.FullScreenAd.SPLASH_AD,
-                            AdsPlacement.FullScreens.SPLASH_WELCOME_AD
-                        )
                         increaseProgress = false
                         progress = 1f
                         viewModel.onSplashAdDone(false)
                     } else {
-                        showProgress = true
-                        increaseProgress = true
-                        showSplashAd = true
+                        adsReady = true
                     }
                 }
 
@@ -136,7 +111,38 @@ fun SplashScreen(
         }
     }
 
-    if (isAdsEnabled()) {
+    if (adsReady) {
+        val monetizationInstall: MonetizationInstall = monetizationInject()
+        val loadNextAds = {
+            if (!adsLoaded) {
+                if (isSessionGateAllowed(SessionGate.PREMIUM_1)) {
+                    monetizationInstall.executeBreakPoint(AdBreakPoint.BP_PREMIUM_PENDING)
+                } else if (isSessionGateAllowed(SessionGate.LANGUAGE)) {
+                    monetizationInstall.executeBreakPoint(AdBreakPoint.BP_LANGUAGE_PENDING)
+                } else if (isSessionGateAllowed(SessionGate.ONBOARDING)) {
+                    monetizationInstall.executeBreakPoint(AdBreakPoint.BP_ONBOARDING_PENDING)
+                } else {
+                    monetizationInstall.executeBreakPoint(AdBreakPoint.BP_HOME_PENDING)
+                }
+                adsLoaded = true
+            }
+        }
+
+        LaunchedEffect(Unit) {
+            if (isShiftSplashAdToPremium()) {
+                monetizationInstall.loadAd(
+                    AdGroupType.FullScreenAd.SPLASH_AD,
+                    AdsPlacement.FullScreens.SPLASH_WELCOME_AD
+                )
+                loadNextAds()
+                viewModel.onSplashAdDone(false)
+            } else {
+                showProgress = true
+                increaseProgress = true
+                showSplashAd = true
+            }
+        }
+
         FullScreenAdShowComponent(
             showAd = showSplashAd,
             placementKey = AdsPlacement.FullScreens.SPLASH_WELCOME_AD,
