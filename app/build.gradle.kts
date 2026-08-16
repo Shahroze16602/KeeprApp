@@ -9,8 +9,8 @@ plugins {
     alias(libs.plugins.firebase.crashlytics) apply false
 }
 
-val appVersionCode = 1
-val appVersionName = "1.0"
+val appVersionCode = 2
+val appVersionName = "1.0.1"
 
 apply(plugin = "com.google.firebase.crashlytics")
 
