@@ -265,18 +265,27 @@ class SwipeDeleteController(private val context: Context) {
                 deleteQueue.drop(deleteCursor).take(1)
             }
             try {
-                val sender = if (Build.VERSION.SDK_INT >= 30) {
-                    MediaStore.createDeleteRequest(
-                        resolver,
-                        activeBatch.map { Uri.parse(it.media.uri) }
-                    ).intentSender
-                } else {
-                    val uri = Uri.parse(activeBatch.first().media.uri)
-                    try {
-                        resolver.delete(uri, null, null)
+                val sender = when {
+                    Build.VERSION.SDK_INT >= 30 -> {
+                        MediaStore.createDeleteRequest(
+                            resolver,
+                            activeBatch.map { Uri.parse(it.media.uri) }
+                        ).intentSender
+                    }
+
+                    Build.VERSION.SDK_INT >= 29 -> {
+                        val uri = Uri.parse(activeBatch.first().media.uri)
+                        try {
+                            resolver.delete(uri, null, null)
+                            null
+                        } catch (e: RecoverableSecurityException) {
+                            e.userAction.actionIntent.intentSender
+                        }
+                    }
+
+                    else -> {
+                        resolver.delete(Uri.parse(activeBatch.first().media.uri), null, null)
                         null
-                    } catch (e: RecoverableSecurityException) {
-                        e.userAction.actionIntent.intentSender
                     }
                 }
                 if (sender != null) return@withContext DeleteStep.Launch(sender, activeBatch.size)
@@ -357,8 +366,17 @@ class SwipeDeleteController(private val context: Context) {
     }
 
     fun hasFullAccess(): Boolean {
-        val permission = if (Build.VERSION.SDK_INT >= 33) android.Manifest.permission.READ_MEDIA_IMAGES else android.Manifest.permission.READ_EXTERNAL_STORAGE
-        return context.checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val readPermission = if (Build.VERSION.SDK_INT >= 33) {
+            android.Manifest.permission.READ_MEDIA_IMAGES
+        } else {
+            android.Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+        val canRead = context.checkSelfPermission(readPermission) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        val canWrite = Build.VERSION.SDK_INT >= 29 ||
+            context.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        return canRead && canWrite
     }
     fun hasPartialAccess(): Boolean = Build.VERSION.SDK_INT >= 34 &&
         context.checkSelfPermission(android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) == android.content.pm.PackageManager.PERMISSION_GRANTED

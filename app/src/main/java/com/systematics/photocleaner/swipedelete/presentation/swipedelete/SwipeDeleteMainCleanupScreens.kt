@@ -3,8 +3,10 @@ package com.systematics.photocleaner.swipedelete.presentation.swipedelete
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
 import android.os.SystemClock
 import android.util.LruCache
 import androidx.activity.compose.BackHandler
@@ -75,6 +77,40 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     is ContextWrapper -> baseContext.findActivity()
     else -> null
 }
+
+private fun decodeMediaBitmap(context: Context, uri: Uri) =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        val source = ImageDecoder.createSource(context.contentResolver, uri)
+        ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+            val maxDimension = maxOf(info.size.width, info.size.height)
+            if (maxDimension > MEDIA_BITMAP_MAX_DIMENSION) {
+                decoder.setTargetSampleSize(
+                    ((maxDimension + MEDIA_BITMAP_MAX_DIMENSION - 1) / MEDIA_BITMAP_MAX_DIMENSION)
+                        .coerceAtLeast(1)
+                )
+            }
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+        }
+    } else {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use {
+            BitmapFactory.decodeStream(it, null, bounds)
+        }
+        val maxDimension = maxOf(bounds.outWidth, bounds.outHeight)
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = if (maxDimension > MEDIA_BITMAP_MAX_DIMENSION) {
+                ((maxDimension + MEDIA_BITMAP_MAX_DIMENSION - 1) / MEDIA_BITMAP_MAX_DIMENSION)
+                    .coerceAtLeast(1)
+            } else {
+                1
+            }
+        }
+        context.contentResolver.openInputStream(uri)?.use {
+            BitmapFactory.decodeStream(it, null, options)
+        } ?: error("Unable to decode media bitmap")
+    }
+
+private const val MEDIA_BITMAP_MAX_DIMENSION = 1200
 
 fun Long.bytesLabel(): String = when {
     this >= 1024L * 1024 * 1024 -> "%.2f GB".format(this / (1024.0 * 1024 * 1024))
@@ -553,17 +589,7 @@ fun AsyncMediaImage(
         if (bitmap != null) return@LaunchedEffect
         val decoded = withContext(Dispatchers.IO) {
             runCatching {
-                val source = ImageDecoder.createSource(context.contentResolver, Uri.parse(media.uri))
-                ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
-                    val max = 1200
-                    val maxDimension = maxOf(info.size.width, info.size.height)
-                    if (maxDimension > max) {
-                        decoder.setTargetSampleSize(
-                            ((maxDimension + max - 1) / max).coerceAtLeast(1)
-                        )
-                    }
-                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-                }.asImageBitmap()
+                decodeMediaBitmap(context, Uri.parse(media.uri)).asImageBitmap()
             }
         }
         decoded.onSuccess { loaded ->

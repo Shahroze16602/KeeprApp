@@ -25,7 +25,7 @@ configure<ApplicationExtension> {
 
     defaultConfig {
         applicationId = "com.systematics.photocleaner.swipedelete"
-        minSdk = 29
+        minSdk = 26
         targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersionName
