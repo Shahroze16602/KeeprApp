@@ -20,11 +20,11 @@ if (hasGoogleServices) {
 }
 
 configure<ApplicationExtension> {
-    namespace = "com.systematics.keepr"
+    namespace = "com.systematics.photocleaner.swipedelete"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.systematics.keepr"
+        applicationId = "com.systematics.photocleaner.swipedelete"
         minSdk = 29
         targetSdk = 36
         versionCode = appVersionCode
@@ -73,7 +73,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 }
 
 base {
-    archivesName.set("Keepr-$appVersionName ($appVersionCode)")
+    archivesName.set("Photo-Cleaner-Swipe-Delete-$appVersionName ($appVersionCode)")
 }
 
 dependencies {

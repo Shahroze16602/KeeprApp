@@ -22,7 +22,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Keepr"
+rootProject.name = "PhotoCleanerSwipeDelete"
 include(":app")
 include(":billingslib:core")
 include(":billingslib:play")
