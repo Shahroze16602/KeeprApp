@@ -1,8 +1,11 @@
 package com.systematics.photocleaner.swipedelete.utils.update
 
 import android.content.Context
-import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
+import com.google.android.play.core.appupdate.AppUpdateInfo
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.appupdate.AppUpdateOptions
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.UpdateAvailability
 
@@ -14,47 +17,85 @@ interface SdkUpdateListener {
 
 class AppUpdateHelper(context: Context) {
     private val appUpdateManager = AppUpdateManagerFactory.create(context.applicationContext)
+    private var updateCheckInProgress = false
 
     fun checkAndStartImmediateUpdate(
-        activity: ComponentActivity,
+        activityResultLauncher: ActivityResultLauncher<IntentSenderRequest>,
         callback: SdkUpdateListener
+    ) = checkForImmediateUpdate(
+        activityResultLauncher = activityResultLauncher,
+        callback = callback,
+        startAvailableUpdate = true
+    )
+
+    fun resumeImmediateUpdateIfInProgress(
+        activityResultLauncher: ActivityResultLauncher<IntentSenderRequest>,
+        callback: SdkUpdateListener
+    ) = checkForImmediateUpdate(
+        activityResultLauncher = activityResultLauncher,
+        callback = callback,
+        startAvailableUpdate = false
+    )
+
+    private fun checkForImmediateUpdate(
+        activityResultLauncher: ActivityResultLauncher<IntentSenderRequest>,
+        callback: SdkUpdateListener,
+        startAvailableUpdate: Boolean
     ) {
+        if (updateCheckInProgress) return
+        updateCheckInProgress = true
+
         appUpdateManager.appUpdateInfo
             .addOnSuccessListener { info ->
+                updateCheckInProgress = false
                 when {
-                    info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE &&
+                    startAvailableUpdate &&
+                        info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE &&
                         info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE) -> {
-                        val started = appUpdateManager.startUpdateFlowForResult(
-                            info,
-                            AppUpdateType.IMMEDIATE,
-                            activity,
-                            UPDATE_REQUEST_CODE
+                        startImmediateUpdate(
+                            activityResultLauncher = activityResultLauncher,
+                            appUpdateInfo = info,
+                            failureMessage = "Google Play declined to start the update flow",
+                            callback = callback
                         )
-                        if (started) callback.onUpdateStarted()
-                        else callback.onUpdateFailed("Google Play declined to start the update flow")
                     }
 
                     info.updateAvailability() ==
                         UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS -> {
-                        val resumed = appUpdateManager.startUpdateFlowForResult(
-                            info,
-                            AppUpdateType.IMMEDIATE,
-                            activity,
-                            UPDATE_REQUEST_CODE
+                        startImmediateUpdate(
+                            activityResultLauncher = activityResultLauncher,
+                            appUpdateInfo = info,
+                            failureMessage = "Google Play declined to resume the update flow",
+                            callback = callback
                         )
-                        if (resumed) callback.onUpdateStarted()
-                        else callback.onUpdateFailed("Google Play declined to resume the update flow")
                     }
 
                     else -> callback.onUpdateSuccess()
                 }
             }
             .addOnFailureListener { error ->
+                updateCheckInProgress = false
                 callback.onUpdateFailed(error.message ?: error.javaClass.simpleName)
             }
     }
 
-    private companion object {
-        const val UPDATE_REQUEST_CODE = 7102
+    private fun startImmediateUpdate(
+        activityResultLauncher: ActivityResultLauncher<IntentSenderRequest>,
+        appUpdateInfo: AppUpdateInfo,
+        failureMessage: String,
+        callback: SdkUpdateListener
+    ) {
+        runCatching {
+            appUpdateManager.startUpdateFlowForResult(
+                appUpdateInfo,
+                activityResultLauncher,
+                AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build()
+            )
+        }.onSuccess { started ->
+            if (started) callback.onUpdateStarted()
+            else callback.onUpdateFailed(failureMessage)
+        }.onFailure { error ->
+            callback.onUpdateFailed(error.message ?: error.javaClass.simpleName)
+        }
     }
 }
